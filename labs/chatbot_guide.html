@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reading chatbot.py — a guided tour</title>
+<style>
+  :root {
+    --bg: #fdfcf9; --ink: #2a2a2e; --dim: #6b6b74; --accent: #b45309;
+    --code-bg: #1e1e28; --code-ink: #d8d8e4; --kw: #c792ea; --str: #a5d68a;
+    --com: #7a7a8c; --fnc: #82aaff; --num: #f78c6c; --line: #e6e2d8;
+    --card: #f5f2ea; --good: #2e7d32; --warn: #b3541e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 17px/1.65 Georgia, 'Times New Roman', serif;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
+  h1 { font-size: 2.2rem; line-height: 1.2; margin: 0 0 .3rem; }
+  h2 { font-size: 1.5rem; margin: 3rem 0 .8rem; border-bottom: 2px solid var(--line); padding-bottom: .4rem; }
+  h3 { font-size: 1.15rem; margin: 2rem 0 .5rem; }
+  .sub { color: var(--dim); font-style: italic; margin-bottom: 2rem; }
+  a { color: var(--accent); }
+  code, pre { font-family: "SF Mono", Menlo, Consolas, monospace; }
+  code { background: var(--card); padding: .1em .35em; border-radius: 4px; font-size: .85em; }
+  pre {
+    background: var(--code-bg); color: var(--code-ink); padding: 1.1rem 1.3rem;
+    border-radius: 10px; overflow-x: auto; font-size: .8rem; line-height: 1.55;
+  }
+  pre code { background: none; padding: 0; font-size: inherit; color: inherit; }
+  pre .kw { color: var(--kw); } pre .s { color: var(--str); }
+  pre .c { color: var(--com); font-style: italic; } pre .fn { color: var(--fnc); }
+  pre .n { color: var(--num); }
+  .lineref { float: right; color: var(--com); font-size: .72rem; font-family: Menlo, monospace; }
+  .callout {
+    background: var(--card); border-left: 4px solid var(--accent);
+    padding: .8rem 1.1rem; border-radius: 0 8px 8px 0; margin: 1.2rem 0;
+  }
+  .callout.green { border-left-color: var(--good); }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: .92rem; }
+  th, td { text-align: left; padding: .5rem .7rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; color: var(--dim); }
+  td code { white-space: nowrap; }
+  /* the turn diagram */
+  .flow { display: flex; flex-direction: column; gap: 0; margin: 1.5rem 0; }
+  .step {
+    display: flex; gap: 1rem; align-items: baseline; background: var(--card);
+    border: 1px solid var(--line); border-radius: 8px; padding: .55rem .9rem; font-size: .92rem;
+  }
+  .step.disk { background: #eef3ea; border-color: #cfdcc6; }
+  .step b { font-family: Menlo, monospace; font-size: .8rem; color: var(--accent); white-space: nowrap; }
+  .step .why { color: var(--dim); font-size: .85rem; }
+  .arrow { text-align: center; color: var(--dim); line-height: 1.1; padding: .15rem 0; }
+  .badge {
+    display: inline-block; font: .68rem/1 Menlo, monospace; padding: .25em .55em;
+    border-radius: 99px; background: #e8e2d2; color: #6b5d38; margin-left: .4rem; vertical-align: middle;
+  }
+  .toc { columns: 2; font-size: .95rem; }
+  .toc a { text-decoration: none; }
+  .files td:first-child { font-family: Menlo, monospace; font-size: .8rem; white-space: nowrap; }
+  .cols { display: flex; gap: 1rem; align-items: stretch; margin: 1.5rem 0; }
+  .cols .flow { flex: 1; margin: 0; }
+  .coltitle { font: .72rem/1 Menlo, monospace; text-transform: uppercase; letter-spacing: .08em;
+              color: var(--dim); text-align: center; padding-bottom: .4rem; }
+  @media (max-width: 640px) { .toc { columns: 1; } .cols { flex-direction: column; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Reading <code>chatbot.py</code></h1>
+<p class="sub">A guided tour of <code>labs/chatbot.py</code> — a ~200-line terminal chatbot with
+streaming, observability, local classification, and a durable structured <b>user profile</b>.</p>
+
+<div class="callout green">
+<b>How to read this file (and most Python programs):</b> don't read top to bottom.
+Read the <b>docstring</b> first (the author's map), then jump to <b>main()</b> and follow one message
+through the loop, and only then visit each helper function when the loop calls it.
+The imports tell you the supporting cast; the docstring tells you the plot.
+This page is arranged in exactly that order.
+</div>
+
+<div class="toc">
+<ul>
+<li><a href="#map">1 · The docstring is the map</a></li>
+<li><a href="#cast">2 · The supporting cast (imports)</a></li>
+<li><a href="#turn">3 · The life of one message</a></li>
+<li><a href="#startup">4 · main(): startup</a></li>
+<li><a href="#commands">5 · The command dispatch</a></li>
+<li><a href="#core">6 · The core turn</a></li>
+<li><a href="#memory">7 · The profile memory, up close</a></li>
+<li><a href="#helpers">8 · The small helpers</a></li>
+<li><a href="#disk">9 · What lands on disk</a></li>
+<li><a href="#principles">10 · The design principles</a></li>
+<li><a href="#try">11 · Things to try</a></li>
+</ul>
+</div>
+
+<h2 id="map">1 · The docstring is the map <span class="lineref">lines 1–37</span></h2>
+<p>The file opens with a long docstring. It is not decoration — it names the four ideas the
+file demonstrates, in the order they were added:</p>
+<table>
+<tr><th>Idea</th><th>One sentence</th><th>Lives in</th></tr>
+<tr><td><b>The loop</b></td><td>Read a line, append to history, send the <i>whole</i> history, stream the answer, repeat.</td><td><code>main()</code></td></tr>
+<tr><td><b>Observability</b></td><td>Every request appends one JSON record to <code>traces.jsonl</code> — latency, tokens, ok/error.</td><td><code>traces.py</code></td></tr>
+<tr><td><b>Classification</b></td><td>A local HuggingFace model tags each message (code&nbsp;generation · sales · design · non-work). Free, offline.</td><td><code>hf_classifier.py</code></td></tr>
+<tr><td><b>Durable memory</b></td><td>A small extraction call distills each message into a structured profile — identity · work · preferences · interests — in <code>profile.json</code>; the profile rides in the system prompt.</td><td><code>user_profile.py</code></td></tr>
+</table>
+<p>Key insight hiding in plain sight: <i>"send the WHOLE history"</i>. The model has no memory
+between API calls — every turn resends everything. That is why token counts grow each turn,
+and why the profile (a few dozen tokens, constant size) is the token-efficient way to
+remember things <i>across</i> sessions.</p>
+
+<h2 id="cast">2 · The supporting cast <span class="lineref">lines 39–46</span></h2>
+<pre><code><span class="kw">from</span> _kit          <span class="kw">import</span> banner, chat, client, meter, say, stream_chat
+<span class="kw">from</span> hf_classifier <span class="kw">import</span> classify_local
+<span class="kw">from</span> traces        <span class="kw">import</span> tail, trace
+<span class="kw">from</span> user_profile  <span class="kw">import</span> as_prompt, clean, forget, recall, remember</code></pre>
+<p>Four sibling modules, all deliberately small — open them, they're glass-box:</p>
+<table>
+<tr><th>Module</th><th>Provides</th></tr>
+<tr><td><code>_kit.py</code></td><td><code>client()</code> — an OpenAI client aimed at the class proxy (from <code>.env</code>) ·
+<code>chat()</code> / <code>stream_chat()</code> — metered API calls ·
+<code>meter</code> — the running token/cost tally · <code>say()</code> — rich console printing</td></tr>
+<tr><td><code>traces.py</code></td><td><code>trace(**record)</code> appends one JSON line to <code>traces.jsonl</code>; <code>tail(n)</code> reads the last n back</td></tr>
+<tr><td><code>hf_classifier.py</code></td><td><code>classify_local()</code> — zero-shot topic tagging on your own machine, zero tokens</td></tr>
+<tr><td><code>user_profile.py</code></td><td><code>recall()</code> → the schema-shaped profile · <code>remember(update)</code> merges &amp; saves ·
+<code>clean(update)</code> — the schema bouncer · <code>forget()</code> wipes ·
+<code>as_prompt()</code> renders <code>identity — name: Raja; work — role: …</code></td></tr>
+</table>
+
+<h2 id="turn">3 · The life of one message</h2>
+<p>Everything in this file exists to serve this pipeline. One user message flows through
+eight steps:</p>
+<div class="flow">
+  <div class="step"><b>input()</b> you type a line <span class="why">— commands starting with <code>/</code> short-circuit here</span></div>
+  <div class="arrow">↓</div>
+  <div class="step"><b>history.append</b> your message joins the conversation <span class="why">— role: "user"</span></div>
+  <div class="arrow">↓</div>
+  <div class="step"><b>stream_chat()</b> the WHOLE history goes to the model; the reply streams back word by word <span class="badge">API call · label "chatbot"</span></div>
+  <div class="arrow">↓</div>
+  <div class="step"><b>measure</b> latency from the wall clock, this turn's tokens from meter deltas</div>
+  <div class="arrow">↓</div>
+  <div class="step"><b>classify()</b> the LOCAL model tags your message <span class="badge">free · offline</span></div>
+  <div class="arrow">↓</div>
+  <div class="step"><b>trace()</b> one JSON line into traces.jsonl <span class="why">— the observability record</span></div>
+  <div class="arrow">↓</div>
+  <div class="step"><b>history.append</b> the reply joins the conversation <span class="why">— role: "assistant"</span></div>
+  <div class="arrow">↓</div>
+  <div class="step"><b>extract_profile()</b> durable facts → clean() → merged into profile.json, system prompt refreshed <span class="badge">API call · label "memory"</span></div>
+</div>
+<p>Note there are <b>two</b> API calls per turn: the visible reply and the small profile
+extraction. Both are metered separately — type <code>/cost</code> and you'll see two rows.</p>
+
+<h2 id="startup">4 · main(): startup <span class="lineref">lines 109–122</span></h2>
+<pre><code>cli = client()                                <span class="c"># .env → key → proxy client (exits with the fix if no key)</span>
+<span class="kw">if</span> classify(<span class="s">"hello"</span>) <span class="kw">is</span> <span class="kw">None</span>:                 <span class="c"># warm up the local model once, honestly report if absent</span>
+    say(<span class="s">"(classifier unavailable — chat still works …)"</span>)
+profile = recall()                            <span class="c"># load profile.json → {"identity": {…}, "work": {…}, …}</span>
+known = sum(len(v) <span class="kw">for</span> v <span class="kw">in</span> profile.values()) <span class="c"># "(I know 6 things about you)"</span>
+history = [{<span class="s">"role"</span>: <span class="s">"system"</span>, <span class="s">"content"</span>: system_msg(profile)}]</code></pre>
+<p>The last line is the durable-memory payoff. <code>system_msg()</code> folds the profile
+into the system prompt:</p>
+<pre><code><span class="s">"You are a friendly, concise assistant… <b>Known about this user from earlier
+chats: identity — name: Raja · location: Bangalore; work — role: senior data
+engineer; interests — python, cricket, badminton.</b>"</span></code></pre>
+<p>The bot "remembers you" across restarts for the price of one sentence — not a replayed
+transcript.</p>
+
+<h2 id="commands">5 · The command dispatch <span class="lineref">lines 124–161</span></h2>
+<p>Inside the loop, slash-commands are checked <i>before</i> anything is sent to the model.
+Each one is a <code>continue</code> — handle it locally, go read the next line. Nothing here
+costs tokens.</p>
+<table>
+<tr><th>Command</th><th>What it does</th><th>Touches</th></tr>
+<tr><td><code>/cost</code></td><td>Print the running meter (calls · tokens, by label)</td><td>RAM only</td></tr>
+<tr><td><code>/log</code></td><td>Show the last 3 trace records, raw JSON</td><td>reads <code>traces.jsonl</code></td></tr>
+<tr><td><code>/facts</code> · <code>/profile</code></td><td>Show the profile the bot carries, as one line</td><td>RAM only</td></tr>
+<tr><td><code>/reset</code></td><td>Clear the conversation — <b>the profile survives</b> (fresh history still contains it)</td><td>RAM only</td></tr>
+<tr><td><code>/forget</code></td><td>Delete <code>profile.json</code>, blank the profile, rebuild the system prompt: "we've never met"</td><td>deletes <code>profile.json</code></td></tr>
+<tr><td><code>/quit</code></td><td>Leave (also <code>q</code>, <code>exit</code>, Ctrl-D, Ctrl-C)</td><td>—</td></tr>
+</table>
+<p>Notice the deliberate split: <code>/reset</code> is "start a new conversation with someone
+I know"; <code>/forget</code> is "erase what you know about me". Short-term and long-term
+memory are separate things with separate controls.</p>
+
+<h2 id="core">6 · The core turn <span class="lineref">lines 163–197</span></h2>
+<h3>Send, and measure around the call</h3>
+<pre><code>history.append({<span class="s">"role"</span>: <span class="s">"user"</span>, <span class="s">"content"</span>: user})
+p0, c0 = meter.prompt_tokens, meter.completion_tokens   <span class="c"># meter snapshot BEFORE…</span>
+t0 = time.perf_counter()
+reply = stream_chat(cli, history, label=<span class="s">"chatbot"</span>, on_delta=type_out)
+<span class="c"># …AFTER: this turn's cost is the difference</span>
+pt, ct = meter.prompt_tokens - p0, meter.completion_tokens - c0</code></pre>
+<p>The meter is a session-wide running total, so per-turn numbers come from
+<b>before/after deltas</b> — a pattern worth stealing. <code>on_delta=type_out</code> is a
+callback: every streamed fragment is handed to <code>type_out()</code> the moment it arrives,
+which is what makes the reply appear word by word.</p>
+
+<h3>The error path is a feature <span class="lineref">lines 168–177</span></h3>
+<pre><code><span class="kw">except</span> Exception <span class="kw">as</span> e:
+    history.pop()          <span class="c"># don't resend the turn that failed</span>
+    trace(turn=turn, ok=<span class="kw">False</span>, error=type(e).__name__, …)
+    say(<span class="s">"call failed — try again"</span>)
+    <span class="kw">continue</span>               <span class="c"># the chat survives</span></code></pre>
+<p>Three honest moves: undo the append (so a failed message isn't silently resent forever),
+log the failure as a first-class trace record (<code>ok: false</code>), and keep the loop
+alive. Compare with the success path's trace — same shape, so the log analyzes cleanly.</p>
+
+<h3>Report, then remember <span class="lineref">lines 178–197</span></h3>
+<pre><code>trace(turn=turn, ok=<span class="kw">True</span>, latency_ms=…, prompt_tokens=pt, …)   <span class="c"># observability</span>
+say(<span class="s">"(tagged: …)"</span>)                                             <span class="c"># classification</span>
+say(<span class="s">"(tokens: 115 prompt + 32 completion = 147 · session 345)"</span>)<span class="c"># the bill, every turn</span>
+history.append({<span class="s">"role"</span>: <span class="s">"assistant"</span>, <span class="s">"content"</span>: reply})
+new = extract_profile(cli, profile, user)                       <span class="c"># the 2nd, small API call</span>
+<span class="kw">if</span> new:
+    profile = remember(new)                                     <span class="c"># merge + save profile.json</span>
+    history[0] = {<span class="s">"role"</span>: <span class="s">"system"</span>, <span class="s">"content"</span>: system_msg(profile)}  <span class="c"># refresh the prompt</span>
+    say(<span class="s">"(profile: work — role: senior data engineer)"</span>)         <span class="c"># memory is never silent</span></code></pre>
+
+<h2 id="memory">7 · The profile memory, up close <span class="lineref">lines 53–86 + user_profile.py</span></h2>
+
+<div class="callout">
+<b>The lineage — three versions of the same idea, all still on disk:</b><br>
+<b>v1</b> <code>memory.jsonl</code> — replay the whole transcript. Faithful, but the token bill grows forever.<br>
+<b>v2</b> <code>memory.json</code> — flat <code>key: value</code> facts. Cheap, but flat: a second project invents
+<code>project_2</code>, and nothing says which keys belong together.<br>
+<b>v3</b> <code>profile.json</code> — give memory a <b>shape</b>. The extractor fills a form instead of
+inventing structure.
+</div>
+
+<h3>The schema is the contract</h3>
+<table>
+<tr><th>Section</th><th>Holds</th><th>Type</th><th>Merge rule</th></tr>
+<tr><td><code>identity</code></td><td>who you are — name, location…</td><td>key → value</td><td>same key, new value wins</td></tr>
+<tr><td><code>work</code></td><td>what you do — role, company, current_project…</td><td>key → value</td><td>same key, new value wins</td></tr>
+<tr><td><code>preferences</code></td><td>how you want answers — response_style…</td><td>key → value</td><td>same key, new value wins</td></tr>
+<tr><td><code>interests</code></td><td>what you're into</td><td>list of strings</td><td>append, case-insensitive dedupe</td></tr>
+</table>
+<p>So a promotion <i>updates</i> <code>work.role</code> in place (the file doesn't grow), while a new
+hobby <i>appends</i> to <code>interests</code> (and mentioning python twice doesn't store it twice).</p>
+
+<h3>The write path and the read path</h3>
+<div class="cols">
+  <div>
+    <div class="coltitle">write — every turn</div>
+    <div class="flow">
+      <div class="step"><b>extract_profile()</b> EXTRACT prompt + current profile + your message → LLM <span class="badge">≤200 tok</span></div>
+      <div class="arrow">↓</div>
+      <div class="step"><b>clean()</b> the schema bouncer — known sections, scalar values, non-empty strings only</div>
+      <div class="arrow">↓ ({} if nothing durable — done)</div>
+      <div class="step"><b>remember()</b> dicts: new value wins · lists: append, dedupe</div>
+      <div class="arrow">↓ write</div>
+      <div class="step disk"><b>profile.json</b> survives /reset and restarts</div>
+    </div>
+  </div>
+  <div>
+    <div class="coltitle">read — startup &amp; after changes</div>
+    <div class="flow">
+      <div class="step disk"><b>profile.json</b></div>
+      <div class="arrow">↓ read</div>
+      <div class="step"><b>recall()</b> always schema-shaped — a missing or damaged file is just an empty profile</div>
+      <div class="arrow">↓</div>
+      <div class="step"><b>as_prompt()</b> one compact line: "identity — name: Raja; work — …"</div>
+      <div class="arrow">↓</div>
+      <div class="step"><b>history[0]</b> folded into the system prompt — a few dozen tokens, constant size</div>
+    </div>
+  </div>
+</div>
+
+<h3>The extraction prompt is where the policy lives</h3>
+<pre><code>EXTRACT = (
+    <span class="s">"You maintain a long-term user profile for a chatbot. From the user's "
+    "message, extract only DURABLE facts — things still true next week. "
+    "Reply with ONLY JSON in this exact shape, every section optional: "
+    '{"identity": {"name": "..", "location": ".."}, '
+    '"work": {"role": "..", "company": "..", "current_project": ".."}, '
+    '"preferences": {"response_style": ".."}, '
+    '"interests": ["short topic", ".."]}. '
+    "Short snake_case keys, short values; {} if nothing durable. Report only "
+    "what is new or changed vs the current profile: "</span>
+)</code></pre>
+<p>Every design decision is in that prompt: <b>durable only</b> ("still true next week" — so
+"I'm hungry" is not stored), <b>a form to fill</b> (the exact JSON shape, so facts land in the
+right section under stable keys instead of inventing new ones), <b>compact</b> (this text rides
+in every future system prompt), and <b>incremental</b> (only new/changed facts — the current
+profile is appended to the prompt so the model reuses existing keys and reports deltas).</p>
+
+<h3>Trust nothing: the defensive layers</h3>
+<pre><code><span class="kw">def</span> <span class="fn">extract_profile</span>(cli, profile, user):
+    <span class="kw">try</span>:
+        raw = chat(cli, […], label=<span class="s">"memory"</span>, max_tokens=<span class="n">200</span>)
+        start, end = raw.find(<span class="s">"{"</span>), raw.rfind(<span class="s">"}"</span>)   <span class="c"># tolerate prose/code fences</span>
+        new = json.loads(raw[start:end + <span class="n">1</span>]) <span class="kw">if</span> start != -<span class="n">1</span> <span class="kw">else</span> {}
+        <span class="kw">return</span> clean(new)                            <span class="c"># schema-check it — the extractor is an LLM</span>
+    <span class="kw">except</span> Exception:
+        <span class="kw">return</span> {}                                    <span class="c"># memory must never break the chat</span></code></pre>
+<p>Because LLMs don't always return clean JSON: slice from the first <code>{</code> to the last
+<code>}</code> (survives <code>```json</code> fences and chatty preambles), pass the result
+through <code>clean()</code> (unknown sections, nested junk, and empty values never reach the
+file), and catch <i>everything</i> — a memory hiccup costs you one fact, never the
+conversation. <code>max_tokens=200</code> caps the spend, and <code>label="memory"</code>
+gives it its own row in <code>/cost</code>.</p>
+
+<h2 id="helpers">8 · The small helpers <span class="lineref">lines 89–106</span></h2>
+<p><b><code>classify()</code></b> wraps the local HF model in the same "telemetry must not
+break the app" try/except. Returns <code>None</code> on any failure; the loop checks for
+that.</p>
+<p><b><code>type_out()</code></b> is the typewriter effect: split each streamed fragment on
+whitespace (<code>re.split(r"(\s+)", …)</code> — the capture group <i>keeps</i> the
+whitespace so spacing is preserved), print each word, sleep 40&nbsp;ms. Because it works per
+fragment, it looks right whether the proxy streams many small deltas or falls back to one
+big one.</p>
+
+<h2 id="disk">9 · What lands on disk</h2>
+<table class="files">
+<tr><th>File</th><th>Format</th><th>Written</th><th>Role</th></tr>
+<tr><td>labs/profile.json</td><td>one JSON object, schema-shaped</td><td>rewritten when a fact changes</td><td><b>Long-term memory (v3, active).</b> Read at startup, folded into the system prompt.</td></tr>
+<tr><td>labs/traces.jsonl</td><td>one JSON record per line</td><td>appended every request, forever</td><td><b>Observability.</b> Never read by the model — for <code>/log</code>, <code>jq</code>, pandas.</td></tr>
+<tr><td>labs/memory.json</td><td>flat JSON dict</td><td>no longer written</td><td>Legacy v2 flat fact sheet. Kept for reference; nothing reads it.</td></tr>
+<tr><td>labs/memory.jsonl</td><td>one message per line</td><td>no longer written</td><td>Legacy v1 transcript memory. Kept for reference; nothing reads it.</td></tr>
+</table>
+<p>And the conversation itself — <code>history</code> — is <b>deliberately not on disk</b>.
+It's a Python list in RAM that dies with the process. Only the distilled profile survives.</p>
+
+<h2 id="principles">10 · The design principles</h2>
+<div class="callout">
+<b>1 · Glass-box.</b> Every moving part is a short file you can open. No framework.<br>
+<b>2 · Honest degradation.</b> No classifier? Chat works, traces go untagged. Stream fails? Retry unstreamed, tell the user. Profile extraction chokes? Return <code>{}</code>. Side-features are wrapped so the core loop never dies for a side reason.<br>
+<b>3 · Cost is visible, always.</b> The meter, per-turn token lines, memory's own <code>/cost</code> row. If a feature costs tokens, you can see exactly how many.<br>
+<b>4 · Observability is append-only JSON.</b> One line per request, errors included, analyzed later with standard tools.<br>
+<b>5 · Memory = distillation into a schema.</b> Store what will still be true next week, in a shape that merges predictably and costs a constant handful of tokens.<br>
+<b>6 · Validate at the boundary.</b> The LLM proposes, <code>clean()</code> disposes — nothing an LLM generates is written to disk unchecked.
+</div>
+
+<h2 id="try">11 · Things to try</h2>
+<ul>
+<li>Run it (<code>python labs/chatbot.py</code>), tell it your name, <code>/quit</code>, run it again, ask "what's my name?" — the durability test.</li>
+<li>Tell it about a promotion or a move — watch <code>work.role</code> or <code>identity.location</code> <i>update in place</i> (same key, new value) instead of growing the file.</li>
+<li>Mention a hobby twice in different sessions — <code>interests</code> should store it once (the dedupe).</li>
+<li>Tell it something ephemeral ("I'm tired today") — the extractor should store nothing.</li>
+<li>Type <code>/cost</code> and compare the <code>chatbot</code> row to the <code>memory</code> row — what does remembering cost?</li>
+<li><code>cat labs/profile.json</code> and <code>python labs/user_profile.py</code> — read the profile both raw and pretty-printed.</li>
+<li>Watch the <code>(tokens: …)</code> line climb turn by turn in one session — that's "send the WHOLE history" made visible. Then <code>/reset</code> and watch it drop back while the bot still knows you.</li>
+<li>Break it on purpose: turn off Wi-Fi mid-chat and watch the error path do its three honest moves.</li>
+</ul>
+
+<p style="margin-top:3rem; color:var(--dim); font-size:.85rem; border-top:1px solid var(--line); padding-top:1rem;">
+Generated for <code>mai-practitioner-labs/labs/chatbot.py</code> (204 lines, profile version, as of 2026-08-22).
+Companion files: <code>_kit.py</code> · <code>user_profile.py</code> · <code>traces.py</code> · <code>hf_classifier.py</code>.
+</p>
+
+</div>
+</body>
+</html>

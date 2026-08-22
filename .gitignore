@@ -6,3 +6,8 @@ __pycache__/
 .DS_Store
 .chat_memory.json
 .memory/
+# runtime artifacts from the labs chatbot
+labs/traces.jsonl
+labs/memory.jsonl
+labs/memory.json
+labs/profile.json
