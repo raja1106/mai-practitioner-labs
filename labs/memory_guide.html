@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The three memories of chatbot.py</title>
+<style>
+  :root {
+    --bg: #fdfcf9; --ink: #2a2a2e; --dim: #6b6b74; --accent: #b45309;
+    --code-bg: #1e1e28; --code-ink: #d8d8e4; --kw: #c792ea; --str: #a5d68a;
+    --com: #7a7a8c; --fnc: #82aaff; --num: #f78c6c; --line: #e6e2d8;
+    --card: #f5f2ea; --good: #2e7d32; --warn: #b3541e;
+    --work: #eef3ea; --workb: #cfdcc6; --epis: #ede9f5; --episb: #d4cbe8;
+    --dura: #fdeee0; --durab: #ecd3bb;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 17px/1.65 Georgia, 'Times New Roman', serif; }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
+  h1 { font-size: 2.2rem; line-height: 1.2; margin: 0 0 .3rem; }
+  h2 { font-size: 1.5rem; margin: 3rem 0 .8rem; border-bottom: 2px solid var(--line); padding-bottom: .4rem; }
+  h3 { font-size: 1.15rem; margin: 2rem 0 .5rem; }
+  .sub { color: var(--dim); font-style: italic; margin-bottom: 2rem; }
+  a { color: var(--accent); }
+  code, pre { font-family: "SF Mono", Menlo, Consolas, monospace; }
+  code { background: var(--card); padding: .1em .35em; border-radius: 4px; font-size: .85em; }
+  pre { background: var(--code-bg); color: var(--code-ink); padding: 1.1rem 1.3rem;
+        border-radius: 10px; overflow-x: auto; font-size: .8rem; line-height: 1.55; }
+  pre code { background: none; padding: 0; font-size: inherit; color: inherit; }
+  pre .kw { color: var(--kw); } pre .s { color: var(--str); }
+  pre .c { color: var(--com); font-style: italic; } pre .n { color: var(--num); }
+  pre.console { background: #14141c; }
+  pre.console .you { color: #e8c976; } pre.console .bot { color: #7cc4e8; }
+  pre.console .sys { color: #8a8aa0; font-style: italic; }
+  .lineref { float: right; color: var(--com); font-size: .72rem; font-family: Menlo, monospace; }
+  .callout { background: var(--card); border-left: 4px solid var(--accent);
+             padding: .8rem 1.1rem; border-radius: 0 8px 8px 0; margin: 1.2rem 0; }
+  .callout.green { border-left-color: var(--good); }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: .92rem; }
+  th, td { text-align: left; padding: .5rem .7rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; color: var(--dim); }
+  .flow { display: flex; flex-direction: column; gap: 0; margin: 1.5rem 0; }
+  .step { display: flex; gap: 1rem; align-items: baseline; background: var(--card);
+          border: 1px solid var(--line); border-radius: 8px; padding: .55rem .9rem; font-size: .92rem; }
+  .step.work { background: var(--work); border-color: var(--workb); }
+  .step.epis { background: var(--epis); border-color: var(--episb); }
+  .step.dura { background: var(--dura); border-color: var(--durab); }
+  .step b { font-family: Menlo, monospace; font-size: .8rem; color: var(--accent); white-space: nowrap; }
+  .step .why { color: var(--dim); font-size: .85rem; }
+  .arrow { text-align: center; color: var(--dim); line-height: 1.1; padding: .15rem 0; }
+  .badge { display: inline-block; font: .68rem/1 Menlo, monospace; padding: .25em .55em;
+           border-radius: 99px; background: #e8e2d2; color: #6b5d38; margin-left: .4rem; vertical-align: middle; }
+  .cols { display: flex; gap: 1rem; align-items: stretch; margin: 1.5rem 0; }
+  .cols > div { flex: 1; }
+  .cols .flow { margin: 0; }
+  .coltitle { font: .72rem/1 Menlo, monospace; text-transform: uppercase; letter-spacing: .08em;
+              color: var(--dim); text-align: center; padding-bottom: .4rem; }
+  .memcard { border-radius: 10px; padding: 1rem 1.2rem; border: 1px solid; margin: 0; }
+  .memcard h4 { margin: 0 0 .4rem; font-size: 1rem; }
+  .memcard p { margin: .2rem 0; font-size: .88rem; }
+  .memcard .file { font-family: Menlo, monospace; font-size: .75rem; color: var(--dim); }
+  .mem-work { background: var(--work); border-color: var(--workb); }
+  .mem-epis { background: var(--epis); border-color: var(--episb); }
+  .mem-dura { background: var(--dura); border-color: var(--durab); }
+  .files td:first-child { font-family: Menlo, monospace; font-size: .8rem; white-space: nowrap; }
+  @media (max-width: 640px) { .cols { flex-direction: column; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>The three memories of <code>chatbot.py</code></h1>
+<p class="sub">Working · episodic · durable — how a 350-line lab chatbot remembers the
+present, the past, and the permanent. Companion to the
+<a href="chatbot_guide.html">line-by-line guide</a>.</p>
+
+<div class="callout green">
+<b>The idea in one paragraph.</b> An LLM has no memory at all — every API call starts
+blank, so whatever the bot should "remember" must be packed into the prompt, and tokens
+cost money. The answer isn't one memory, it's three, each with a different lifetime and a
+different price: the <b>working memory</b> is the conversation happening right now (full
+fidelity, grows every turn); <b>episodic memory</b> is whole past conversations filed by
+theme (full transcripts on disk, but only <i>pointers</i> in the prompt); and
+<b>durable memory</b> is the distilled user profile (a few dozen tokens, always present).
+This mirrors how human memory is usually described — and it falls out naturally from
+asking "what deserves prompt space <i>every</i> turn?"
+</div>
+
+<h2 id="three">1 · The three memories at a glance</h2>
+<div class="cols">
+  <div class="memcard mem-work">
+    <h4>Working</h4>
+    <p class="file">labs/memory.jsonl + <code>history</code> in RAM</p>
+    <p><b>Holds:</b> the current episode's turns, verbatim.</p>
+    <p><b>Lives:</b> until you switch episodes (buffer survives restarts).</p>
+    <p><b>Prompt cost:</b> grows every turn — full transcript resent.</p>
+  </div>
+  <div class="memcard mem-epis">
+    <h4>Episodic</h4>
+    <p class="file">labs/episodes/&lt;id&gt;-&lt;slug&gt;.json</p>
+    <p><b>Holds:</b> whole past conversations — transcript + last-state summary.</p>
+    <p><b>Lives:</b> forever, one file per theme; resumable.</p>
+    <p><b>Prompt cost:</b> constant — only [id] title: summary pointers ride along.</p>
+  </div>
+  <div class="memcard mem-dura">
+    <h4>Durable</h4>
+    <p class="file">labs/profile.json</p>
+    <p><b>Holds:</b> invariant facts — identity · work · preferences · interests.</p>
+    <p><b>Lives:</b> forever, updated in place as facts change.</p>
+    <p><b>Prompt cost:</b> constant — one compact sentence.</p>
+  </div>
+</div>
+
+<p>All three meet in the system prompt, which <code>system_msg()</code> assembles fresh
+whenever any of them changes:</p>
+<pre><code><span class="s">"You are a friendly, concise assistant…                                </span><span class="c">← personality</span><span class="s">
+ Known about this user from earlier chats: identity — name: Raja ·
+ location: Bangalore; work — role: senior data engineer; …            </span><span class="c">← durable</span><span class="s">
+ Recent episodes (other conversations you two had): [001] Focus Help:
+ …; [002] Goa trip planning: …; [003] Python decorators: …            </span><span class="c">← episodic pointers</span><span class="s">
+ The current conversation's theme: Goa trip planning."                 </span><span class="c">← working context</span></code></pre>
+
+<h2 id="turn">2 · The life of one turn (now three API calls)</h2>
+<div class="flow">
+  <div class="step epis"><b>detect_topic()</b> from the 2nd message on: does this continue the current theme? <span class="badge">API call · "episodes" · ~80 tok</span></div>
+  <div class="arrow">↓ topic changed? → the bot ASKS; saying <b>y</b> runs the episode switch (next section) first</div>
+  <div class="step"><b>stream_chat()</b> the whole working history goes to the model; the reply streams back <span class="badge">API call · "chatbot"</span></div>
+  <div class="arrow">↓</div>
+  <div class="step"><b>trace() + token line</b> latency, per-turn cost, classifier tag — the observability layer</div>
+  <div class="arrow">↓</div>
+  <div class="step work"><b>working_append() ×2</b> user + reply appended to memory.jsonl <span class="why">— only turns that succeeded</span></div>
+  <div class="arrow">↓</div>
+  <div class="step dura"><b>extract_profile()</b> durable facts distilled into profile.json <span class="badge">API call · "memory" · ≤200 tok</span></div>
+</div>
+<p>Every call has its own label, so <code>/cost</code> itemizes the bill. From a real test
+session: <code>episodes ×5 (1843 tok) · chatbot ×3 (2746 tok) · memory ×3 (757 tok)</code> —
+the remembering machinery cost roughly half as much as the talking.</p>
+
+<h2 id="switch">3 · The episode switch, step by step</h2>
+<p>This is the new machinery. The rule: <b>the bot never switches on its own — it asks.</b>
+Topic detection is a judgment call by a small model; the user stays in charge.</p>
+<div class="flow">
+  <div class="step"><b>1 · detect</b> <code>detect_topic()</code> returns <code>{topic, same_episode, matches_episode}</code> — it sees the current theme and the shelf pointers, so it can recognize a <i>return</i> to an old episode</div>
+  <div class="arrow">↓ same_episode: false</div>
+  <div class="step"><b>2 · ask</b> <code>(new topic: Python decorators — file this chat and start a new episode? [y/N])</code> <span class="why">— N means "false alarm, carry on"</span></div>
+  <div class="arrow">↓ y</div>
+  <div class="step epis"><b>3 · file</b> <code>file_working_episode()</code>: one wrap-up call writes a last-state summary + title, then the whole buffer moves to <code>episodes/&lt;id&gt;-&lt;slug&gt;.json</code> <span class="badge">API call · "episodes" · ≤200 tok</span></div>
+  <div class="arrow">↓</div>
+  <div class="step work"><b>4a · resume</b> if the new topic matches a shelved episode, its transcript reloads into history + buffer — the conversation continues where it left off</div>
+  <div class="step work" style="margin-top:.4rem"><b>4b · fresh</b> otherwise the buffer restarts empty, titled by the detected topic</div>
+  <div class="arrow">↓</div>
+  <div class="step"><b>5 · reply</b> the message that triggered the switch is answered <i>inside</i> the new episode</div>
+</div>
+
+<h3>What it looks like — a real transcript</h3>
+<p>From the test run (episode 002 already held a 4-message Goa plan):</p>
+<pre class="console"><code><span class="you">you &gt;</span> explain python decorators in two sentences with one tiny example
+<span class="sys">    (new topic: Python decorators explanation — file this chat and start a new episode? [y/N]) &gt; y
+    (filed [002] Goa trip planning)</span>
+<span class="bot">bot &gt;</span> A decorator is a function that wraps another function to add behavior…
+
+<span class="you">you &gt;</span> ok back to my goa trip plans please
+<span class="sys">    (new topic: Goa trip planning — file this chat and resume [002] Goa trip planning? [y/N]) &gt; y
+    (filed [003] Python decorators explanation)
+    (resumed [002] Goa trip planning — The trip was refined into a quiet, 3-day
+     December Goa itinerary focused on beaches and seafood, avoiding parties…)</span>
+<span class="bot">bot &gt;</span> Sure — continuing with the relaxed December Goa plan…
+
+<span class="you">you &gt;</span> how many days was I planning to stay and in which month?
+<span class="bot">bot &gt;</span> You were planning a <b>3-day trip in December</b>.</code></pre>
+<p>That last exchange is the whole point: the December detail came back because the
+<i>transcript</i> came back — episodic memory restores full fidelity, not just a summary.</p>
+
+<h2 id="buffer">4 · The working buffer: one file, three tricks <span class="lineref">episodes.py</span></h2>
+<p><code>labs/memory.jsonl</code> is append-only JSONL, one message per line — plus one
+special line:</p>
+<pre><code>{<span class="s">"ts"</span>: <span class="s">"…"</span>, <span class="s">"episode"</span>: <span class="s">"002"</span>, <span class="s">"title"</span>: <span class="s">"Goa trip planning"</span>}   <span class="c">← the header: whose buffer is this?</span>
+{<span class="s">"ts"</span>: <span class="s">"…"</span>, <span class="s">"role"</span>: <span class="s">"user"</span>, <span class="s">"content"</span>: <span class="s">"let's plan my goa trip…"</span>}
+{<span class="s">"ts"</span>: <span class="s">"…"</span>, <span class="s">"role"</span>: <span class="s">"assistant"</span>, <span class="s">"content"</span>: <span class="s">"Great choice—December…"</span>}</code></pre>
+<p><b>Trick 1 — crash-proof:</b> every successful turn is appended immediately, so killing
+the process loses nothing; startup replays the buffer and you resume mid-conversation.<br>
+<b>Trick 2 — the header line:</b> records with an <code>"episode"</code> key instead of a
+<code>"role"</code> are metadata, skipped by <code>working_messages()</code>; the last one
+wins, so re-filing is just appending.<br>
+<b>Trick 3 — the buffer IS the unit of filing:</b> "move working memory into the episode"
+is literally: summarize the buffer, write it to the shelf, restart the buffer.</p>
+
+<h2 id="shelf">5 · The shelf</h2>
+<table class="files">
+<tr><th>File</th><th>What's inside</th></tr>
+<tr><td>episodes/001-focus-help-for-sekar.json</td><td rowspan="3">One JSON object each:
+<code>id · title · created · updated · summary · messages[]</code>. Filed when you switch
+away; updated in place when you resume and later switch away again (same id, refreshed
+summary — the title can even be renamed, the old file is replaced).</td></tr>
+<tr><td>episodes/002-goa-trip-planning.json</td></tr>
+<tr><td>episodes/003-python-decorators-explanation.json</td></tr>
+</table>
+<p>Episode 001 is worth a pause: it was never "created" by anyone. It's the old working
+buffer from the previous version of the bot, archived automatically the first time the
+topic changed — the migration path and the normal path are the same code.</p>
+<p>Browse with <code>/episodes</code> in the chat, or <code>python labs/episodes.py</code>
+outside it. Switch manually with <code>/switch goa</code> (matches by id or title words) or
+<code>/switch</code> alone to file the current chat and start fresh.</p>
+
+<h2 id="prompts">6 · The two new prompts <span class="lineref">chatbot.py 81–95</span></h2>
+<p><b>TOPIC</b> (the detector, ≤80 tokens out) — sees the current theme and the shelf
+pointers, returns <code>{"topic", "same_episode", "matches_episode"}</code>. Its judgment
+is deliberately cheap and deliberately <i>advisory</i>: a false positive costs the user one
+keystroke (N), a false negative costs nothing (the /switch command still exists).</p>
+<p><b>WRAP</b> (the archivist, ≤200 tokens out) — writes the last-state summary at filing
+time: <i>what was discussed, what was decided, what threads are still open</i>. That
+summary then does double duty: it's the episode's label on the shelf, and it's what the
+next system prompt shows as a pointer.</p>
+<p>Both wrap their JSON parsing in the same armor as the profile extractor: slice
+<code>{…}</code> out of whatever came back, validate, and on any failure return
+"do nothing" — <b>memory machinery must never break the conversation.</b></p>
+
+<h2 id="disk">7 · Everything on disk now</h2>
+<table class="files">
+<tr><th>File</th><th>Memory</th><th>Written</th><th>Read</th></tr>
+<tr><td>labs/memory.jsonl</td><td><b>working</b></td><td>every successful turn</td><td>at startup (resume)</td></tr>
+<tr><td>labs/episodes/*.json</td><td><b>episodic</b></td><td>on episode switch</td><td>on resume; pointers every prompt</td></tr>
+<tr><td>labs/profile.json</td><td><b>durable</b></td><td>when a fact changes</td><td>at startup; rides every prompt</td></tr>
+<tr><td>labs/traces.jsonl</td><td>(observability)</td><td>every request</td><td>never by the model</td></tr>
+<tr><td>labs/memory.json</td><td>legacy v2</td><td>—</td><td>—</td></tr>
+</table>
+
+<h2 id="lessons">8 · Design lessons worth stealing</h2>
+<div class="callout">
+<b>1 · Ask before switching.</b> Topic detection is probabilistic; context loss is expensive.
+The cheap direction (ask, one keystroke) absorbs the errors of the expensive one.<br>
+<b>2 · Summaries for awareness, transcripts for fidelity.</b> Pointers keep every past
+episode one sentence away; resuming restores the full text. Don't make the prompt pay for
+fidelity it doesn't need yet.<br>
+<b>3 · The buffer is the unit of work.</b> One append-only file that is resumed, filed, and
+restarted — no state machine, no database, readable with <code>cat</code>.<br>
+<b>4 · Failure means "do nothing", never "break".</b> Detector down? No interruption.
+Wrap-up failed? File with a placeholder summary. The chat always survives its memory.<br>
+<b>5 · Every memory has a price tag.</b> Three meter labels — chatbot, episodes, memory —
+so you can answer "what does remembering cost?" with a number.
+</div>
+
+<h2 id="try">9 · Things to try</h2>
+<ul>
+<li>Chat about one thing, then abruptly ask about another — watch the ask. Say <b>N</b> and notice nothing was lost.</li>
+<li>Say <b>y</b>, chat a while, then say "let's get back to &lt;old topic&gt;" — watch it offer the <i>resume</i>, and quiz the bot on a detail from the old conversation.</li>
+<li>Kill the terminal mid-conversation and restart — the working buffer resumes exactly where you were.</li>
+<li><code>cat labs/memory.jsonl</code> — find the header line. <code>cat labs/episodes/002-*.json</code> — find the summary and the transcript.</li>
+<li><code>/cost</code> after a switch-heavy session — compare the three rows. Is episodic memory worth its tokens to you?</li>
+<li>Watch the prompt-token number jump when you resume a long episode — fidelity has a price, and now you can see it.</li>
+</ul>
+
+<p style="margin-top:3rem; color:var(--dim); font-size:.85rem; border-top:1px solid var(--line); padding-top:1rem;">
+Companion to the <a href="chatbot_guide.html">line-by-line guide to chatbot.py</a> ·
+episodic version, as of 2026-08-22 ·
+modules: <code>chatbot.py</code> · <code>episodes.py</code> · <code>user_profile.py</code> · <code>traces.py</code> · <code>_kit.py</code>
+</p>
+
+</div>
+</body>
+</html>

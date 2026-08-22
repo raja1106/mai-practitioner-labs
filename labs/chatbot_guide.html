@@ -70,8 +70,16 @@
 <div class="wrap">
 
 <h1>Reading <code>chatbot.py</code></h1>
-<p class="sub">A guided tour of <code>labs/chatbot.py</code> — a ~200-line terminal chatbot with
+<p class="sub">A guided tour of <code>labs/chatbot.py</code> — a terminal chatbot with
 streaming, observability, local classification, and a durable structured <b>user profile</b>.</p>
+
+<div class="callout">
+<b>Newer companion page:</b> the bot has since grown <b>episodic memory</b> — conversations
+filed by theme in <code>labs/episodes/</code>, with a topic-change detector that asks before
+switching. The three-memory architecture (working · episodic · durable) is covered in
+<a href="memory_guide.html"><b>memory_guide.html</b></a>; this page remains the line-by-line
+tour of the core loop and the profile.
+</div>
 
 <div class="callout green">
 <b>How to read this file (and most Python programs):</b> don't read top to bottom.
@@ -136,6 +144,8 @@ eight steps:</p>
 <div class="flow">
   <div class="step"><b>input()</b> you type a line <span class="why">— commands starting with <code>/</code> short-circuit here</span></div>
   <div class="arrow">↓</div>
+  <div class="step"><b>detect_topic()</b> from the 2nd message on: same theme? if not, the bot asks whether to switch episodes <span class="badge">API call · label "episodes"</span> <span class="why">— see <a href="memory_guide.html">memory_guide</a></span></div>
+  <div class="arrow">↓</div>
   <div class="step"><b>history.append</b> your message joins the conversation <span class="why">— role: "user"</span></div>
   <div class="arrow">↓</div>
   <div class="step"><b>stream_chat()</b> the WHOLE history goes to the model; the reply streams back word by word <span class="badge">API call · label "chatbot"</span></div>
@@ -177,7 +187,9 @@ costs tokens.</p>
 <tr><td><code>/cost</code></td><td>Print the running meter (calls · tokens, by label)</td><td>RAM only</td></tr>
 <tr><td><code>/log</code></td><td>Show the last 3 trace records, raw JSON</td><td>reads <code>traces.jsonl</code></td></tr>
 <tr><td><code>/facts</code> · <code>/profile</code></td><td>Show the profile the bot carries, as one line</td><td>RAM only</td></tr>
-<tr><td><code>/reset</code></td><td>Clear the conversation — <b>the profile survives</b> (fresh history still contains it)</td><td>RAM only</td></tr>
+<tr><td><code>/episodes</code></td><td>List the shelf of past conversations (id · title · summary)</td><td>reads <code>episodes/</code></td></tr>
+<tr><td><code>/switch [topic]</code></td><td>File the current chat, then resume the matching episode — or start fresh with no argument</td><td>writes <code>episodes/</code></td></tr>
+<tr><td><code>/reset</code></td><td>Clear the conversation and working buffer — <b>episodes and profile survive</b></td><td>clears <code>memory.jsonl</code></td></tr>
 <tr><td><code>/forget</code></td><td>Delete <code>profile.json</code>, blank the profile, rebuild the system prompt: "we've never met"</td><td>deletes <code>profile.json</code></td></tr>
 <tr><td><code>/quit</code></td><td>Leave (also <code>q</code>, <code>exit</code>, Ctrl-D, Ctrl-C)</td><td>—</td></tr>
 </table>
@@ -316,13 +328,15 @@ big one.</p>
 <h2 id="disk">9 · What lands on disk</h2>
 <table class="files">
 <tr><th>File</th><th>Format</th><th>Written</th><th>Role</th></tr>
-<tr><td>labs/profile.json</td><td>one JSON object, schema-shaped</td><td>rewritten when a fact changes</td><td><b>Long-term memory (v3, active).</b> Read at startup, folded into the system prompt.</td></tr>
+<tr><td>labs/profile.json</td><td>one JSON object, schema-shaped</td><td>rewritten when a fact changes</td><td><b>Durable memory.</b> Read at startup, folded into the system prompt.</td></tr>
+<tr><td>labs/memory.jsonl</td><td>one message per line + a header line</td><td>every successful turn</td><td><b>Working memory buffer.</b> Holds the current episode only; resumed on restart, filed to the shelf on switch.</td></tr>
+<tr><td>labs/episodes/*.json</td><td>one JSON object per episode</td><td>on episode switch</td><td><b>Episodic memory.</b> Transcript + last-state summary; pointers ride in every system prompt.</td></tr>
 <tr><td>labs/traces.jsonl</td><td>one JSON record per line</td><td>appended every request, forever</td><td><b>Observability.</b> Never read by the model — for <code>/log</code>, <code>jq</code>, pandas.</td></tr>
 <tr><td>labs/memory.json</td><td>flat JSON dict</td><td>no longer written</td><td>Legacy v2 flat fact sheet. Kept for reference; nothing reads it.</td></tr>
-<tr><td>labs/memory.jsonl</td><td>one message per line</td><td>no longer written</td><td>Legacy v1 transcript memory. Kept for reference; nothing reads it.</td></tr>
 </table>
-<p>And the conversation itself — <code>history</code> — is <b>deliberately not on disk</b>.
-It's a Python list in RAM that dies with the process. Only the distilled profile survives.</p>
+<p>The in-RAM <code>history</code> list still dies with the process — but it is now mirrored
+turn-by-turn into the working buffer, so nothing is lost. The full memory architecture is in
+<a href="memory_guide.html">memory_guide.html</a>.</p>
 
 <h2 id="principles">10 · The design principles</h2>
 <div class="callout">
@@ -347,8 +361,10 @@ It's a Python list in RAM that dies with the process. Only the distilled profile
 </ul>
 
 <p style="margin-top:3rem; color:var(--dim); font-size:.85rem; border-top:1px solid var(--line); padding-top:1rem;">
-Generated for <code>mai-practitioner-labs/labs/chatbot.py</code> (204 lines, profile version, as of 2026-08-22).
-Companion files: <code>_kit.py</code> · <code>user_profile.py</code> · <code>traces.py</code> · <code>hf_classifier.py</code>.
+Generated for <code>mai-practitioner-labs/labs/chatbot.py</code> (episodic version, as of 2026-08-22;
+some line references reflect the profile version).
+Companion files: <code>_kit.py</code> · <code>episodes.py</code> · <code>user_profile.py</code> · <code>traces.py</code> · <code>hf_classifier.py</code>
+· <a href="memory_guide.html">memory_guide.html</a>.
 </p>
 
 </div>
